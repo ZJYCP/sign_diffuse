@@ -7,15 +7,15 @@ defaults:
   - datamodule: mnist.yaml
   - model: mnist.yaml
   - callbacks: default.yaml
-  - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
-  - trainer: default.yaml
+  - logger: tensorboard.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - trainer: gpu.yaml
   - paths: default.yaml
   - extras: default.yaml
   - hydra: default.yaml
 
   # experiment configs allow for version control of specific hyperparameters
   # e.g. best hyperparameters for given model and datamodule
-  - experiment: null
+  - experiment: sign.yaml
 
   # config for hyperparameter optimization
   - hparams_search: null
@@ -35,17 +35,17 @@ task_name: "train"
 # overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
 # appending lists from command line is currently not supported :(
 # https://github.com/facebookresearch/hydra/issues/1547
-tags: ["dev"]
+# tags: ["dev"]
 
 # set False to skip model training
 train: True
 
 # evaluate on test set, using best model weights achieved during training
 # lightning chooses best weights based on the metric specified in checkpoint callback
-test: True
+test: False
 
-# simply provide checkpoint path to resume training
-ckpt_path: null
+# # simply provide checkpoint path to resume training
+# ckpt_path: null
 
-# seed for random number generators in pytorch, numpy and python.random
-seed: null
+# # seed for random number generators in pytorch, numpy and python.random
+# seed: null

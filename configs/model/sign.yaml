@@ -1,0 +1,33 @@
+_target_: src.models.sign_module.SignLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.1
+  patience: 10
+
+net:
+  _target_: src.models.components.transformer.MotionTransformer
+  input_feats: 150 # 
+  num_frames: 300  # 最长序列
+  latent_dim: 512
+  ff_size: 1024
+  num_layers: 8
+  num_heads: 8
+  dropout: 0
+  activation: gelu
+  num_text_layers: 4
+  text_latent_dim: 256
+  text_ff_size: 2048
+  text_num_heads: 4
+  no_clip: False
+  no_eff: False
+
+diffusion_steps: 100
