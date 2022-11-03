@@ -149,6 +149,7 @@ configs/local/default.yaml
 data/
 logs/
 configs/train.yaml
+config/eval.yaml
 .env
 .autoenv
 configs/datamodule/sign.yaml

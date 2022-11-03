@@ -30,4 +30,4 @@ tags: ["dev"]
 
 
 # passing checkpoint path is necessary for evaluation
-ckpt_path: /root/diffusion/sign_diffuse/logs/train/runs/2022-11-02_14-25-09/checkpoints/epoch_007.ckpt
+ckpt_path: /root/sign_diffuse/logs/train/runs/2022-11-02_20-59-32/checkpoints/last.ckpt
