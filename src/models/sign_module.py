@@ -13,6 +13,9 @@ from src.models.components.gaussian_diffusion import (
 from torchmetrics import MinMetric, MeanMetric
 
 from src.utils.plot_videos import plot_video
+from src.utils.utils import saveSkels
+import pickle
+import os
 
 class SignLitModule(LightningModule):
     """
@@ -164,8 +167,8 @@ class SignLitModule(LightningModule):
         self.log("val/loss_best", self.val_loss_best.compute(), prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):
-        if batch_idx > 0:
-            return
+        # if batch_idx > 0:
+        #     return
         text, gloss, motions, m_lens = batch
         caption = gloss
         xf_proj, xf_out = self.net.encode_text(caption, self.device)
@@ -182,18 +185,34 @@ class SignLitModule(LightningModule):
                 'xf_out': xf_out,
                 'length': m_lens
             })
-        for i in range(output.shape[0]):
-            pred = output[i].detach().cpu().numpy()[:m_lens[i]]
+        if batch_idx < 0:
+            for i in range(output.shape[0]):
+                pred = output[i].detach().cpu().numpy()[:m_lens[i]]
 
-            plot_video(joints=pred,
-                                file_path=self.hparams['save_path'],
-                                video_name="train_"+str(i),
-                                references=motions[i].detach().cpu().numpy(),
-                                skip_frames=1,
-                                sequence_ID="4") 
+                plot_video(joints=pred,
+                                    file_path=self.hparams['save_path'],
+                                    video_name="train_"+str(i),
+                                    references=motions[i].detach().cpu().numpy(),
+                                    skip_frames=1,
+                                    sequence_ID="4")
+
+        return output,gloss,text,m_lens
 
     def test_epoch_end(self, outputs: List[Any]):
-        pass
+        # saveSkels(gloss, text, motion, dataset, save_name):
+        #         Data.append({'name':name,'signer':signer,'gloss':gloss,'text':text, 'sign':sign})
+        Data = []
+        for items in outputs:
+            for i in range(len(items[1])):
+                m_len = items[3][i].cpu()
+                sign_motion = items[0][i,:m_len].detach().cpu()
+                step = (torch.arange(1, m_len+1, step=1) / m_len).unsqueeze(-1)
+                sign_motion = torch.cat((sign_motion, step), dim=1).numpy()
+
+                Data.append({'name':'diffuse','signer':'diffusionn','gloss':items[1][i], 'text': items[2][i], 'sign':sign_motion})
+        pkl_f=open(os.path.join(self.hparams['save_path'],'sign.test'),'wb')
+        pickle.dump(Data,pkl_f)
+        pkl_f.close()
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         pass

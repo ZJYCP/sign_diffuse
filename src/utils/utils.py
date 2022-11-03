@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List
 
 import hydra
+import pickle
 from omegaconf import DictConfig
 from pytorch_lightning import Callback
 from pytorch_lightning.loggers import LightningLoggerBase
@@ -14,6 +15,37 @@ from src.utils import pylogger, rich_utils
 
 log = pylogger.get_pylogger(__name__)
 
+def saveSkels(gloss, text, motion, dataset, save_name):
+    Data = []
+
+    for i in range(gloss.shape[0]):
+        pass
+
+# def saveSkels(file_paths, hypotheses, skel, data_set_name):
+#     """
+#         保存预测结果，用于back translation
+#     """
+#     Data = []
+#     Gloss = open("/root/ProgressiveTransformersSLP/Data/{0}/{0}.gloss".format(data_set_name), "r").readlines()
+#     Text = open("/root/ProgressiveTransformersSLP/Data/{0}/{0}.text".format(data_set_name), "r").readlines()
+
+#     for i, ele in enumerate(file_paths):
+#         name = ele.strip()
+#         signer = name.split('_')[-1].split('-')[0]
+#         gloss = Gloss[i].strip()
+#         text = Text[i].strip()
+#         sign = hypotheses[i][1:]
+#         # Cut the hypothesis down to the max count value
+#         _, hyp_max_idx = torch.max(sign[:, -1], 0)
+#         if hyp_max_idx == 0: hyp_max_idx += 1
+#         # Cut down frames by counter
+#         sign = sign[:hyp_max_idx,:].cpu()
+
+#         Data.append({'name':name,'signer':signer,'gloss':gloss,'text':text, 'sign':sign})
+
+#     pkl_f=open('/root/ProgressiveTransformersSLP/CGIModel/{0}/{0}.{1}'.format(skel,data_set_name),'wb')
+#     pickle.dump(Data,pkl_f)
+#     pkl_f.close()
 
 def task_wrapper(task_func: Callable) -> Callable:
     """Optional decorator that wraps the task function in extra utilities.
