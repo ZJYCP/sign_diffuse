@@ -151,3 +151,4 @@ logs/
 configs/train.yaml
 .env
 .autoenv
+configs/datamodule/sign.yaml

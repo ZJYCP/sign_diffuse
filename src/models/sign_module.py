@@ -12,6 +12,8 @@ from src.models.components.gaussian_diffusion import (
 )
 from torchmetrics import MinMetric, MeanMetric
 
+from src.utils.plot_videos import plot_video
+
 class SignLitModule(LightningModule):
     """
     A LightningModule organizes your PyTorch code into 6 sections:
@@ -30,7 +32,7 @@ class SignLitModule(LightningModule):
         net: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
-        **kargs
+        *args, **kargs
     ):
         super().__init__()
 
@@ -62,7 +64,15 @@ class SignLitModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_loss_best = MinMetric()
 
-    def forward(self, caption, x_start, B, cur_len):
+    def forward(self, batch):
+
+        text, gloss, motions, m_lens = batch
+        caption = gloss
+
+        x_start = motions
+        B, T = x_start.shape[:2]
+
+        cur_len = torch.LongTensor([min(T, m_len) for m_len in  m_lens]).to(self.device)
 
         t, _ = self.sampler.sample(B, x_start.device)
         output = self.diffusion.training_losses(
@@ -72,7 +82,7 @@ class SignLitModule(LightningModule):
             model_kwargs={"text": caption, "length": cur_len}
         )
 
-        return output
+        return output, T, cur_len
 
 
     def on_train_start(self):
@@ -81,21 +91,13 @@ class SignLitModule(LightningModule):
         self.val_loss_best.reset()
 
     def step(self, batch: Any):
-        text, gloss, motions, m_lens = batch
-        caption = gloss
-
-        x_start = motions
-        B, T = x_start.shape[:2]
-
-        cur_len = torch.LongTensor([min(T, m_len) for m_len in  m_lens]).to(self.device)
-
-        output = self.forward(caption, x_start, B, cur_len)
+        output, T, cur_len = self.forward(batch)
         real_noise = output['target']
         fake_noise = output['pred']        
         try:
-            self.src_mask = self.net.module.generate_src_mask(T, cur_len).to(x_start.device)
+            self.src_mask = self.net.module.generate_src_mask(T, cur_len).to(self.device)
         except:
-            self.src_mask = self.net.generate_src_mask(T, cur_len).to(x_start.device)
+            self.src_mask = self.net.generate_src_mask(T, cur_len).to(self.device)
 
         loss_mot_rec = self.criterion(fake_noise, real_noise).mean(dim=-1)
         loss_mot_rec = (loss_mot_rec * self.src_mask).sum() / self.src_mask.sum()
@@ -162,17 +164,38 @@ class SignLitModule(LightningModule):
         self.log("val/loss_best", self.val_loss_best.compute(), prog_bar=True)
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss, preds, targets = self.step(batch)
+        if batch_idx > 0:
+            return
+        text, gloss, motions, m_lens = batch
+        caption = gloss
+        xf_proj, xf_out = self.net.encode_text(caption, self.device)
+        B = len(caption)
+        # T = min(m_lens.max(), self.net.num_frames)
+        T = self.net.num_frames
+        output = self.diffusion.p_sample_loop(
+            self.net,
+            (B, T, self.net.input_feats),
+            clip_denoised=False,
+            progress=False,
+            model_kwargs={
+                'xf_proj': xf_proj,
+                'xf_out': xf_out,
+                'length': m_lens
+            })
+        for i in range(output.shape[0]):
+            pred = output[i].detach().cpu().numpy()[:m_lens[i]]
 
-        # update and log metrics
-        self.test_loss(loss)
-        self.test_acc(preds, targets)
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("test/acc", self.test_acc, on_step=False, on_epoch=True, prog_bar=True)
-
-        return {"loss": loss, "preds": preds, "targets": targets}
+            plot_video(joints=pred,
+                                file_path=self.hparams['save_path'],
+                                video_name="train_"+str(i),
+                                references=motions[i].detach().cpu().numpy(),
+                                skip_frames=1,
+                                sequence_ID="4") 
 
     def test_epoch_end(self, outputs: List[Any]):
+        pass
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         pass
 
     def configure_optimizers(self):
