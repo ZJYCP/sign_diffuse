@@ -130,7 +130,7 @@ class SignLitModule(LightningModule):
             self.net,
             (B, T, self.net.input_feats),
             clip_denoised=False,
-            progress=True,
+            progress=False,
             model_kwargs={
                 'xf_proj': xf_proj,
                 'xf_out': xf_out,

@@ -1,5 +1,5 @@
 _target_: src.datamodules.sign_datamodule.SignDataModule
-data_dir: /root/diffusion/sign_diffusion/data/Sign
+data_dir: /root/autodl-tmp/data/Sign
 batch_size: 128
 train_val_test_split: [55_000, 5_000, 10_000]
 num_workers: 8

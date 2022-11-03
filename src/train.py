@@ -35,6 +35,7 @@ root = pyrootutils.setup_root(
 
 from typing import List, Optional, Tuple
 
+import os
 import hydra
 import pytorch_lightning as pl
 from omegaconf import DictConfig
@@ -133,3 +134,7 @@ def main(cfg: DictConfig) -> Optional[float]:
 
 if __name__ == "__main__":
     main()
+    
+    # if the code runs on the autoDL plat, shut it down when finished for saving money
+    if os.uname()[1] == "container-2b5311a43c-a6182a60":
+        os.system("shutdown")
