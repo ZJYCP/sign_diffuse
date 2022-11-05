@@ -10,6 +10,8 @@ import numpy as np
 import clip
 
 import math
+from transformers import AutoTokenizer, MBartTokenizer, MBart50Tokenizer
+from transformers import BertConfig, BertModel, MBartConfig, MBartModel
 
 
 def timestep_embedding(timesteps, dim, max_period=10000):
@@ -316,15 +318,29 @@ class MotionTransformer(nn.Module):
         self.sequence_embedding = nn.Parameter(torch.randn(num_frames, latent_dim))
 
         # Text Transformer
+        # Mbart
+        self.tokenizer = AutoTokenizer.from_pretrained('facebook/mbart-large-50', src_lang='de_DE')
+        self.config = MBartConfig.from_pretrained('facebook/mbart-large-50')
+        self.mbart_model = MBartModel(self.config).encoder
+        for name, p in self.mbart_model.named_parameters():
+            name = name.lower()
+            # if 'layer_norm' not in name and 'layernorm' not in name and 'embed_positions' not in name:
+            p.requires_grad = False
+        # for name, p in self.mbart_model.named_parameters():
+        #     name = name.lower()
+        #     if 'fc' in name:
+        #         p.requires_grad = True        
+
         self.clip, _ = clip.load('ViT-B/32', "cpu")
         if no_clip:
             self.clip.initialize_parameters()
         else:
             set_requires_grad(self.clip, False)
-        if text_latent_dim != 512:
-            self.text_pre_proj = nn.Linear(512, text_latent_dim)
-        else:
-            self.text_pre_proj = nn.Identity()
+        # if text_latent_dim != 512:
+        #     self.text_pre_proj = nn.Linear(512, text_latent_dim)
+        # else:
+        #     self.text_pre_proj = nn.Identity()
+        self.text_pre_proj = nn.Linear(1024, text_latent_dim)
         textTransEncoderLayer = nn.TransformerEncoderLayer(
             d_model=text_latent_dim,
             nhead=text_num_heads,
@@ -378,23 +394,44 @@ class MotionTransformer(nn.Module):
         self.out = zero_module(nn.Linear(self.latent_dim, self.input_feats))
         
     def encode_text(self, text, device):
-        with torch.no_grad():
-            text = clip.tokenize(text, truncate=True).to(device)
-            x = self.clip.token_embedding(text).type(self.clip.dtype)  # [batch_size, n_ctx, d_model]
 
-            x = x + self.clip.positional_embedding.type(self.clip.dtype)
+        # output = self.tokenizer(list(text), padding='max_length', truncation=True)
+        # input_ids = torch.tensor(output['input_ids']).to(device)
+        # attention_mask = torch.tensor(output['attention_mask']).to(device)
+        # x = self.mbart_model(input_ids, attention_mask).last_hidden_state
+        # x = x.permute(1, 0, 2)  # NLD -> LND
+
+        with torch.no_grad():
+            output = self.tokenizer(list(text), padding='longest', truncation=True)
+            input_ids = torch.tensor(output['input_ids']).to(device)
+            attention_mask = torch.tensor(output['attention_mask']).to(device)
+            x = self.mbart_model(input_ids, attention_mask).last_hidden_state
             x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.clip.transformer(x)
-            x = self.clip.ln_final(x).type(self.clip.dtype)
 
         # T, B, D
-        x = self.text_pre_proj(x)
-        xf_out = self.textTransEncoder(x)
-        xf_out = self.text_ln(xf_out)
-        xf_proj = self.text_proj(xf_out[text.argmax(dim=-1), torch.arange(xf_out.shape[1])])
+        xf_out = self.text_pre_proj(x)
+        xf_proj = self.text_proj(xf_out[input_ids.argmax(dim=-1), torch.arange(xf_out.shape[1])])
         # B, T, D
         xf_out = xf_out.permute(1, 0, 2)
         return xf_proj, xf_out
+
+        # with torch.no_grad():
+        #     text = clip.tokenize(text, truncate=True).to(device)
+        #     x = self.clip.token_embedding(text).type(self.clip.dtype)  # [batch_size, n_ctx, d_model]
+
+        #     x = x + self.clip.positional_embedding.type(self.clip.dtype)
+        #     x = x.permute(1, 0, 2)  # NLD -> LND
+        #     x = self.clip.transformer(x)
+        #     x = self.clip.ln_final(x).type(self.clip.dtype)
+
+        # # T, B, D
+        # x = self.text_pre_proj(x)
+        # xf_out = self.textTransEncoder(x)
+        # xf_out = self.text_ln(xf_out)
+        # xf_proj = self.text_proj(xf_out[text.argmax(dim=-1), torch.arange(xf_out.shape[1])])
+        # # B, T, D
+        # xf_out = xf_out.permute(1, 0, 2)
+        # return xf_proj, xf_out        
 
     def generate_src_mask(self, T, length):
         B = len(length)

@@ -21,7 +21,7 @@ def plot_video(joints,
     # Create video template
     FPS = (25 // skip_frames)
     video_file = file_path + "/{}.mp4".format(video_name.split(".")[0])
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'VP09')
     # joints = joints.detach().cpu().numpy()
     # references = references.detach().cpu().numpy()
     if references is None:

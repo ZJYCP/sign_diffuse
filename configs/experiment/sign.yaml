@@ -8,6 +8,7 @@ defaults:
   - override /model: sign.yaml
   - override /callbacks: default.yaml
   - override /trainer: gpu.yaml
+  - override /logger: tensorboard.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
 
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters

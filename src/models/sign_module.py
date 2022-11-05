@@ -41,7 +41,7 @@ class SignLitModule(LightningModule):
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
-        self.save_hyperparameters(logger=False)
+        self.save_hyperparameters(logger=False, ignore='net')
 
         sampler = 'uniform'
         beta_scheduler = 'linear'
@@ -210,12 +210,41 @@ class SignLitModule(LightningModule):
                 sign_motion = torch.cat((sign_motion, step), dim=1).numpy()
 
                 Data.append({'name':'diffuse','signer':'diffusionn','gloss':items[1][i], 'text': items[2][i], 'sign':sign_motion})
-        pkl_f=open(os.path.join(self.hparams['save_path'],'sign.test'),'wb')
+        pkl_f=open(os.path.join(self.hparams['save_path'],'sign_best.dev'),'wb')
         pickle.dump(Data,pkl_f)
         pkl_f.close()
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        pass
+        
+        if batch_idx > 0:
+            return
+        text, gloss, motions, m_lens = batch
+        caption = gloss
+        xf_proj, xf_out = self.net.encode_text(caption, self.device)
+        B = len(caption)
+        # T = min(m_lens.max(), self.net.num_frames)
+        T = self.net.num_frames
+        output = self.diffusion.p_sample_loop(
+            self.net,
+            (B, T, self.net.input_feats),
+            clip_denoised=False,
+            progress=False,
+            model_kwargs={
+                'xf_proj': xf_proj,
+                'xf_out': xf_out,
+                'length': m_lens
+            })
+        for i in range(output.shape[0]):
+            pred = output[i].detach().cpu().numpy()[:m_lens[i]]
+
+            plot_video(joints=pred,
+                                file_path=self.hparams['save_path'],
+                                video_name="train_"+str(i),
+                                references=motions[i].detach().cpu().numpy(),
+                                skip_frames=1,
+                                sequence_ID="4")
+
+        return output        
 
     def configure_optimizers(self):
         """Choose what optimizers and learning-rate schedulers to use in your optimization.

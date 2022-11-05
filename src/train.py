@@ -118,6 +118,7 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
 
 
 @hydra.main(version_base="1.2", config_path=root / "configs", config_name="train.yaml")
+# @hydra.main(config_path=root / "configs", config_name="train.yaml")
 def main(cfg: DictConfig) -> Optional[float]:
 
     # train the model
@@ -135,6 +136,6 @@ def main(cfg: DictConfig) -> Optional[float]:
 if __name__ == "__main__":
     main()
     
-    # if the code runs on the autoDL plat, shut it down when finished for saving money
-    if os.uname()[1] == "container-2b5311a43c-a6182a60":
-        os.system("shutdown")
+    # if the code runs on the autoDL, shut it down when finished for saving money
+    # if os.uname()[1] == "container-2b5311a43c-a6182a60":
+    #     os.system("shutdown")
